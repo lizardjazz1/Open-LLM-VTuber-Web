@@ -89,10 +89,12 @@ export class LAppView {
     // this._gear.release();
     // this._gear = null;
 
-    this._back.release();
+    if (this._back && typeof (this._back as any).release === 'function') {
+      try { (this._back as any).release(); } catch (_) {}
+    }
     this._back = null;
 
-    gl.deleteProgram(this._programId);
+    try { gl?.deleteProgram(this._programId); } catch (_) {}
     this._programId = null;
   }
 

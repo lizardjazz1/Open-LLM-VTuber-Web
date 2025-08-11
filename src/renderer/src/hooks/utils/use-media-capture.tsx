@@ -63,32 +63,69 @@ export function useMediaCapture() {
       console.warn(`No video track in ${source} stream`);
       return null;
     }
+    
+    // Prefer ImageCapture API where available
+    const hasImageCapture = typeof (window as any).ImageCapture === 'function';
+    if (hasImageCapture) {
+      try {
+        // eslint-disable-next-line no-new
+        const imageCapture = new (window as any).ImageCapture(videoTrack);
+        const bitmap = await imageCapture.grabFrame();
+        const canvas = document.createElement('canvas');
+        let { width, height } = bitmap;
+        const maxWidth = getImageMaxWidth();
+        if (width > maxWidth) {
+          height = (maxWidth / width) * height;
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          console.error('Failed to get canvas context');
+          return null;
+        }
+        ctx.drawImage(bitmap, 0, 0);
+        const quality = getCompressionQuality();
+        return canvas.toDataURL('image/jpeg', quality);
+      } catch (error) {
+        console.warn(`ImageCapture failed for ${source}, falling back to video canvas:`, error);
+        // fall through to video-canvas fallback
+      }
+    }
 
-    const imageCapture = new ImageCapture(videoTrack);
+    // Fallback: use a temporary hidden video element and draw current frame
     try {
-      const bitmap = await imageCapture.grabFrame();
-      const canvas = document.createElement('canvas');
-      let { width, height } = bitmap;
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.muted = true;
+      video.playsInline = true as any;
+      // Wait for metadata to know dimensions
+      await new Promise<void>((resolve) => {
+        const onReady = () => resolve();
+        video.addEventListener('loadedmetadata', onReady, { once: true });
+        // Safari/Firefox sometimes need play() to progress currentTime
+        const p = (video as any).play?.();
+        if (p && typeof p.then === 'function') { p.catch(() => {}); }
+      });
 
+      const canvas = document.createElement('canvas');
+      let width = video.videoWidth || 640;
+      let height = video.videoHeight || 360;
       const maxWidth = getImageMaxWidth();
       if (width > maxWidth) {
-        height = (maxWidth / width) * height;
+        height = Math.floor((maxWidth / width) * height);
         width = maxWidth;
       }
-
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        console.error('Failed to get canvas context');
-        return null;
-      }
-
-      ctx.drawImage(bitmap, 0, 0);
+      if (!ctx) return null;
+      ctx.drawImage(video, 0, 0, width, height);
       const quality = getCompressionQuality();
       return canvas.toDataURL('image/jpeg', quality);
     } catch (error) {
-      console.error(`Error capturing ${source} frame:`, error);
+      console.error(`Error capturing ${source} frame via video fallback:`, error);
       toaster.create({
         title: `${t('error.failedCapture', { source: source })}: ${error}`,
         type: 'error',

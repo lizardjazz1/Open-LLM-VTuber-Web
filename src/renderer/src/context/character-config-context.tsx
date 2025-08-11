@@ -11,6 +11,10 @@ export interface ConfigFile {
   name: string;
 }
 
+export interface TtsInfo {
+  model?: string;
+}
+
 /**
  * Character configuration context state interface
  * @interface CharacterConfigState
@@ -19,10 +23,12 @@ interface CharacterConfigState {
   confName: string;
   confUid: string;
   configFiles: ConfigFile[];
+  ttsInfo?: TtsInfo;
   setConfName: (name: string) => void;
   setConfUid: (uid: string) => void;
   setConfigFiles: (files: ConfigFile[]) => void;
   getFilenameByName: (name: string) => string | undefined;
+  setTtsInfo: (info?: TtsInfo) => void;
 }
 
 /**
@@ -48,6 +54,7 @@ export function CharacterConfigProvider({ children }: { children: React.ReactNod
   const [confName, setConfName] = useState<string>(DEFAULT_CONFIG.confName);
   const [confUid, setConfUid] = useState<string>(DEFAULT_CONFIG.confUid);
   const [configFiles, setConfigFiles] = useState<ConfigFile[]>(DEFAULT_CONFIG.configFiles);
+  const [ttsInfo, setTtsInfo] = useState<TtsInfo | undefined>(undefined);
 
   const getFilenameByName = useCallback(
     (name: string) => configFiles.find((config) => config.name === name)?.filename,
@@ -60,12 +67,14 @@ export function CharacterConfigProvider({ children }: { children: React.ReactNod
       confName,
       confUid,
       configFiles,
+      ttsInfo,
       setConfName,
       setConfUid,
       setConfigFiles,
       getFilenameByName,
+      setTtsInfo,
     }),
-    [confName, confUid, configFiles, getFilenameByName],
+    [confName, confUid, configFiles, ttsInfo, getFilenameByName],
   );
 
   useEffect(() => {

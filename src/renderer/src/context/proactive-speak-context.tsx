@@ -64,6 +64,13 @@ export function ProactiveSpeakProvider({ children }: { children: ReactNode }) {
     }
   }, [aiState, startIdleTimer, clearIdleTimer]);
 
+  // Restart timer when settings change and AI is idle
+  useEffect(() => {
+    if (aiState === AiStateEnum.IDLE) {
+      startIdleTimer();
+    }
+  }, [settings, aiState, startIdleTimer]);
+
   useEffect(() => () => {
     clearIdleTimer();
   }, [clearIdleTimer]);

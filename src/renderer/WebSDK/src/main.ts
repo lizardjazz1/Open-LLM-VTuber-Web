@@ -22,6 +22,14 @@ export function initializeLive2D(): void {
   );
   console.log("Model directories:", LAppDefine.ModelDir);
 
+  // Guard: ensure model config has been set before initializing
+  if (!Array.isArray(LAppDefine.ModelDir) || LAppDefine.ModelDir.length === 0
+      || !Array.isArray(LAppDefine.ModelFileNames) || LAppDefine.ModelFileNames.length === 0
+      || !LAppDefine.ModelFileNames[0]) {
+    console.warn('[Live2D] Model config not set yet; skipping initializeLive2D for now.');
+    return;
+  }
+
   // Clean up any existing instances first
   if (LAppDelegate.getInstance()) {
     // Release existing model resources
@@ -39,6 +47,7 @@ export function initializeLive2D(): void {
   LAppDelegate.getInstance().run();
 
   (window as any).getLive2DManager = () => LAppLive2DManager.getInstance();
+  (window as any).__L2D_INIT_DONE__ = true;
 
   // Make sure LAppAdapter is available globally
   if (!(window as any).getLAppAdapter) {
@@ -54,12 +63,14 @@ export function initializeLive2D(): void {
       const model = LAppLive2DManager.getInstance().getModel(0);
       const view = LAppDelegate.getInstance().getView();
 
+      if (!model || !view || !view._deviceToScreen) return;
+
       // Transform screen coordinates to Live2D canvas coordinates
       const x = view?._deviceToScreen.transformX(e.x);
       const y = view?._deviceToScreen.transformY(e.y);
 
       // Check if mouse is over the Live2D model
-      (window as any).api.setIgnoreMouseEvent(!model?.anyhitTest(x, y) && !model?.isHitOnModel(x, y));
+      (window as any).api.setIgnoreMouseEvent(!model?.anyhitTest?.(x, y) && !model?.isHitOnModel?.(x, y));
     });
 
     // Add pointerdown event listener
@@ -67,13 +78,15 @@ export function initializeLive2D(): void {
       const model = LAppLive2DManager.getInstance().getModel(0);
       const view = LAppDelegate.getInstance().getView();
 
+      if (!model || !view || !view._deviceToScreen) return;
+
       // Transform screen coordinates to Live2D canvas coordinates
       const x = view?._deviceToScreen.transformX(e.x);
       const y = view?._deviceToScreen.transformY(e.y);
 
       // Test hit and log result
-      const hitAreaName = model?.anyhitTest(x, y);
-      const isHit = hitAreaName !== null || model?.isHitOnModel(x, y);
+      const hitAreaName = model?.anyhitTest?.(x, y);
+      const isHit = hitAreaName !== null || model?.isHitOnModel?.(x, y);
       console.log("Model clicked:", isHit, hitAreaName ? `in area: ${hitAreaName}` : '');
     });
   }
@@ -110,7 +123,12 @@ window.addEventListener(
   "resize",
   () => {
     if (LAppDefine.CanvasSize === "auto") {
-      LAppDelegate.getInstance().onResize();
+      const hasModelConfig = Array.isArray(LAppDefine.ModelDir) && LAppDefine.ModelDir.length > 0
+        && Array.isArray(LAppDefine.ModelFileNames) && LAppDefine.ModelFileNames.length > 0
+        && !!LAppDefine.ModelFileNames[0];
+      if (hasModelConfig) {
+        LAppDelegate.getInstance().onResize();
+      }
     }
   },
   { passive: true }

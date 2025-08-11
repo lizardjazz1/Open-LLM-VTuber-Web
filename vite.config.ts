@@ -26,6 +26,10 @@ const createConfig = async (outDir: string) => ({
           src: normalizePath(path.resolve(__dirname, 'src/renderer/WebSDK/Core/live2dcubismcore.js')),
           dest: './libs/',
         },
+        {
+          src: normalizePath(path.resolve(__dirname, 'src/renderer/WebSDK/Core/live2dcubismcore.js.map')),
+          dest: './libs/',
+        },
       ],
     }),
     react(),

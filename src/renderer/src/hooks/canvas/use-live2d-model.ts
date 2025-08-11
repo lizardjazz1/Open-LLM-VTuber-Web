@@ -103,6 +103,38 @@ export const useLive2DModel = ({
   const isHoveringModelRef = useRef(false);
   const electronApi = (window as any).electron;
 
+  // Track deferred init attempts
+  const initTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initAttemptsRef = useRef<number>(0);
+
+  const tryInitializeWhenReady = useCallback((initKey: string) => {
+    const MAX_ATTEMPTS = 40; // ~4s total if 100ms interval
+    const INTERVAL_MS = 100;
+
+    const attempt = () => {
+      if (canvasRef.current) {
+        (window as any).__L2D_INIT_KEY__ = initKey;
+        initializeLive2D();
+        return;
+      }
+      if (initAttemptsRef.current >= MAX_ATTEMPTS) {
+        console.warn('[Live2D] Canvas not ready after waiting, skipping init for now');
+        return;
+      }
+      initAttemptsRef.current += 1;
+      initTimerRef.current = setTimeout(attempt, INTERVAL_MS);
+    };
+
+    // Start attempts
+    // Reset previous schedule if any
+    if (initTimerRef.current) {
+      clearTimeout(initTimerRef.current);
+      initTimerRef.current = null;
+    }
+    initAttemptsRef.current = 0;
+    attempt();
+  }, [canvasRef]);
+
   // --- State for Tap vs Drag ---
   const mouseDownTimeRef = useRef<number>(0);
   const mouseDownPosRef = useRef<Position>({ x: 0, y: 0 }); // Screen coords at mousedown
@@ -118,27 +150,59 @@ export const useLive2DModel = ({
                         (currentUrl !== prevModelUrlRef.current ||
                          (sdkScale !== undefined && modelScale !== undefined && sdkScale !== modelScale));
 
-    if (needsUpdate) {
-      prevModelUrlRef.current = currentUrl;
+    if (!needsUpdate) return;
 
+    prevModelUrlRef.current = currentUrl!;
+
+    try {
+      const { baseUrl, modelDir, modelFileName } = parseModelUrl(currentUrl!);
+
+      if (!(baseUrl && modelDir && modelFileName)) return;
+
+      // Apply model configuration
+      updateModelConfig(baseUrl, modelDir, modelFileName, Number(modelInfo?.kScale));
+
+      // One-shot init when both config and canvas are ready
+      const initKey = `${baseUrl}|${modelDir}|${modelFileName}`;
+      const initializedForUrlRef = (window as any).__L2D_INIT_KEY__ as string | undefined;
+
+      if (initializedForUrlRef !== initKey) {
+        if (canvasRef.current) {
+          (window as any).__L2D_INIT_KEY__ = initKey;
+          initializeLive2D();
+        } else {
+          // Defer until canvas mounts
+          tryInitializeWhenReady(initKey);
+        }
+      }
+    } catch (error) {
+      console.error('Error processing model URL:', error);
+    }
+  }, [modelInfo?.url, modelInfo?.kScale, canvasRef.current, tryInitializeWhenReady]);
+
+  // Ensure init if confUid+modelInfo are present and canvas exists (one-shot safety)
+  useEffect(() => {
+    const currentUrl = modelInfo?.url;
+    if (!currentUrl || !(window as any).LAppDefine) return;
+    const initDone = (window as any).__L2D_INIT_DONE__;
+    if (canvasRef.current && !initDone) {
       try {
         const { baseUrl, modelDir, modelFileName } = parseModelUrl(currentUrl);
-
-        if (baseUrl && modelDir) {
-          updateModelConfig(baseUrl, modelDir, modelFileName, Number(modelInfo.kScale));
-
-          setTimeout(() => {
-            if ((window as any).LAppLive2DManager?.releaseInstance) {
-              (window as any).LAppLive2DManager.releaseInstance();
-            }
-            initializeLive2D();
-          }, 500);
+        if (baseUrl && modelDir && modelFileName) {
+          const initKey = `${baseUrl}|${modelDir}|${modelFileName}`;
+          tryInitializeWhenReady(initKey);
         }
-      } catch (error) {
-        console.error('Error processing model URL:', error);
-      }
+      } catch (_) {}
     }
-  }, [modelInfo?.url, modelInfo?.kScale]);
+  }, [modelInfo?.url, canvasRef.current, tryInitializeWhenReady]);
+
+  // Cleanup pending timers on unmount
+  useEffect(() => () => {
+    if (initTimerRef.current) {
+      clearTimeout(initTimerRef.current);
+      initTimerRef.current = null;
+    }
+  }, []);
 
   const getModelPosition = useCallback(() => {
     const adapter = (window as any).getLAppAdapter?.();
@@ -216,12 +280,14 @@ export const useLive2DModel = ({
     const y = e.clientY - rect.top; // Screen Y relative to canvas
 
     // --- Check if click is on model ---
+    if (!view._deviceToScreen) return;
     const scale = canvas.width / canvas.clientWidth;
     const scaledX = x * scale;
     const scaledY = y * scale;
     const modelX = view._deviceToScreen.transformX(scaledX);
     const modelY = view._deviceToScreen.transformY(scaledY);
 
+    if (!model.anyhitTest || !model.isHitOnModel) return;
     const hitAreaName = model.anyhitTest(modelX, modelY);
     const isHitOnModel = model.isHitOnModel(modelX, modelY);
     // --- End Check ---
@@ -272,6 +338,7 @@ export const useLive2DModel = ({
 
     // --- Continue Drag Logic ---
     if (isDragging && adapter && view && model && canvasRef.current) {
+      if (!view._deviceToScreen) return;
       const canvas = canvasRef.current;
       const rect = canvas.getBoundingClientRect();
       const currentX = e.clientX - rect.left; // Current screen X relative to canvas
@@ -320,9 +387,11 @@ export const useLive2DModel = ({
       const scale = canvas.width / canvas.clientWidth;
       const scaledX = x * scale;
       const scaledY = y * scale;
+      if (!view._deviceToScreen) return;
       const modelX = view._deviceToScreen.transformX(scaledX);
       const modelY = view._deviceToScreen.transformY(scaledY);
 
+      if (!model.anyhitTest || !model.isHitOnModel) return;
       const currentHitState = model.anyhitTest(modelX, modelY) !== null || model.isHitOnModel(modelX, modelY);
 
       if (currentHitState !== isHoveringModelRef.current) {
@@ -369,6 +438,7 @@ export const useLive2DModel = ({
           const scale = canvas.width / canvas.clientWidth;
           const downX = (mouseDownPosRef.current.x - rect.left) * scale;
           const downY = (mouseDownPosRef.current.y - rect.top) * scale;
+          if (!view._deviceToScreen || !model.anyhitTest) return;
           const modelX = view._deviceToScreen.transformX(downX);
           const modelY = view._deviceToScreen.transformY(downY);
 

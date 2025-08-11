@@ -1,11 +1,11 @@
 import { ChangeEvent, KeyboardEvent } from 'react';
-import { useVAD } from '@/context/vad-context';
 import { useTextInput } from '@/hooks/footer/use-text-input';
 import { useInterrupt } from '@/hooks/utils/use-interrupt';
 import { useMicToggle } from '@/hooks/utils/use-mic-toggle';
 import { useAiState, AiStateEnum } from '@/context/ai-state-context';
 import { useTriggerSpeak } from '@/hooks/utils/use-trigger-speak';
 import { useProactiveSpeak } from '@/context/proactive-speak-context';
+import { logAction } from '@/services/clientLogger';
 
 export const useFooter = () => {
   const {
@@ -17,8 +17,8 @@ export const useFooter = () => {
   } = useTextInput();
 
   const { interrupt } = useInterrupt();
-  const { startMic, autoStartMicOn } = useVAD();
-  const { handleMicToggle, micOn } = useMicToggle();
+  // no direct need here; auto-start handled inside use-interrupt
+  const { handleMicToggle, micOn, isDisabled } = useMicToggle();
   const { setAiState, aiState } = useAiState();
   const { sendTriggerSignal } = useTriggerSpeak();
   const { settings } = useProactiveSpeak();
@@ -33,11 +33,10 @@ export const useFooter = () => {
   };
 
   const handleInterrupt = () => {
+    logAction('ui.click', 'interrupt');
     if (aiState === AiStateEnum.THINKING_SPEAKING) {
+      // use-interrupt handles setting idle and auto-starting mic (with bypass)
       interrupt();
-      if (autoStartMicOn) {
-        startMic();
-      }
     } else if (settings.allowButtonTrigger) {
       sendTriggerSignal(-1);
     }
@@ -52,5 +51,6 @@ export const useFooter = () => {
     handleInterrupt,
     handleMicToggle,
     micOn,
+    isDisabled,
   };
 };

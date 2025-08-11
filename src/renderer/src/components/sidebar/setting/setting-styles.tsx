@@ -57,6 +57,14 @@ export const settingStyles = {
         borderColor: 'whiteAlpha.200',
         mb: 4,
         pl: 0,
+        gap: 2,
+        overflowX: 'auto',
+        whiteSpace: 'nowrap' as const,
+        css: {
+          '&::-webkit-scrollbar': { height: '6px' },
+          '&::-webkit-scrollbar-track': { bg: 'whiteAlpha.100', borderRadius: 'full' },
+          '&::-webkit-scrollbar-thumb': { bg: 'whiteAlpha.300', borderRadius: 'full' },
+        },
       },
     },
     footer: {
@@ -146,7 +154,9 @@ export const settingStyles = {
     fieldLabel: {
       fontSize: 'sm',
       color: 'whiteAlpha.800',
-      whiteSpace: 'nowrap' as const,
+      whiteSpace: 'normal' as const,
+      wordBreak: 'break-word' as const,
+      lineHeight: '1.2',
     },
     switch: {
       size: 'md' as const,

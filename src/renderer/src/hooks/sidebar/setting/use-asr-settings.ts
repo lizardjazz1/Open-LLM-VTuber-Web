@@ -66,13 +66,8 @@ export const useASRSettings = () => {
   };
 
   const handleCancel = (): void => {
+    // Revert only numeric fields; toggles persist immediately and are not reverted
     localSettingsRef.current = originalSettingsRef.current;
-    setLocalVoiceInterruption(originalAutoStopMicRef.current);
-    setLocalAutoStartMic(originalAutoStartMicOnRef.current);
-    setAutoStopMic(originalAutoStopMicRef.current);
-    setAutoStartMicOn(originalAutoStartMicOnRef.current);
-    setLocalAutoStartMicOnConvEnd(originalAutoStartMicOnConvEndRef.current);
-    setAutoStartMicOnConvEnd(originalAutoStartMicOnConvEndRef.current);
     forceUpdate();
   };
 

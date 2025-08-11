@@ -21,6 +21,9 @@ import { useLocalStorage } from '@/hooks/utils/use-local-storage';
 import { useGroup } from '@/context/group-context';
 import { useInterrupt } from '@/hooks/utils/use-interrupt';
 import { useBrowser } from '@/context/browser-context';
+import { useTwitch } from '@/context/twitch-context';
+// DEBUG: [FIXED] Bind client_uid to client logger | Ref: frontend-logging
+import { setClientUid, logError } from '@/services/clientLogger';
 
 function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -33,28 +36,56 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { clearResponse, setForceNewMessage, appendHumanMessage, appendOrUpdateToolCallMessage } = useChatHistory();
   const { addAudioTask } = useAudioTask();
   const bgUrlContext = useBgUrl();
-  const { confUid, setConfName, setConfUid, setConfigFiles } = useConfig();
+  const { confUid, setConfName, setConfUid, setConfigFiles, setTtsInfo } = useConfig();
   const [pendingModelInfo, setPendingModelInfo] = useState<ModelInfo | undefined>(undefined);
   const { setSelfUid, setGroupMembers, setIsOwner } = useGroup();
   const { startMic, stopMic, autoStartMicOnConvEnd } = useVAD();
   const autoStartMicOnConvEndRef = useRef(autoStartMicOnConvEnd);
   const { interrupt } = useInterrupt();
   const { setBrowserViewData } = useBrowser();
+  const { setStatus: setTwitchStatus, pushMessage: pushTwitchMessage } = useTwitch();
+  const { modelInfo } = useLive2DConfig();
 
   useEffect(() => {
     autoStartMicOnConvEndRef.current = autoStartMicOnConvEnd;
   }, [autoStartMicOnConvEnd]);
 
+  // Restore model info apply effect
   useEffect(() => {
-    if (pendingModelInfo) {
-      setModelInfo(pendingModelInfo);
+    // Apply model info only when both pendingModelInfo and confUid are ready
+    if (!pendingModelInfo) return;
+    if (!confUid) return;
+    // If already applied, clear pending
+    if (modelInfo?.url && modelInfo.url === pendingModelInfo.url) {
       setPendingModelInfo(undefined);
+      return;
     }
+    // Apply once; we will clear pending only after confirmation via modelInfo.url
+    setModelInfo(pendingModelInfo);
   }, [pendingModelInfo, setModelInfo, confUid]);
 
   const {
     setCurrentHistoryUid, setMessages, setHistoryList,
   } = useChatHistory();
+
+  useEffect(() => {
+    // Attach WS error logging
+    const originalOnError = (wsService as any).ws?.onerror;
+    (wsService as any).ws && ((wsService as any).ws.onerror = (ev: Event) => {
+      logError('ws.error', { type: 'ws', event: 'error', detail: String(ev) });
+      if (originalOnError) originalOnError(ev);
+    });
+    const originalOnClose = (wsService as any).ws?.onclose;
+    (wsService as any).ws && ((wsService as any).ws.onclose = (ev: CloseEvent) => {
+      logError('ws.close', { code: ev.code, reason: ev.reason });
+      if (originalOnClose) originalOnClose(ev);
+    });
+  }, []);
+
+  useEffect(() => {
+    // Initialize connection
+    wsService.connect(wsUrl);
+  }, [wsUrl]);
 
   const handleControlMessage = useCallback((controlText: string) => {
     switch (controlText) {
@@ -75,9 +106,8 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         audioTaskQueue.addTask(() => new Promise<void>((resolve) => {
           setAiState((currentState: AiState) => {
             if (currentState === 'thinking-speaking') {
-              // Auto start mic if enabled
               if (autoStartMicOnConvEndRef.current) {
-                startMic();
+                setTimeout(() => startMic({ bypassLock: true }), 10);
               }
               return 'idle';
             }
@@ -93,6 +123,11 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
 
   const handleWebSocketMessage = useCallback((message: MessageEvent) => {
     console.log('Received message from server:', message);
+    // DEBUG: [FIXED] Save client_uid on handshake | Ref: frontend-logging
+    if (message.client_uid) {
+      setSelfUid(message.client_uid);
+      setClientUid(message.client_uid);
+    }
     switch (message.type) {
       case 'control':
         if (message.text) {
@@ -108,17 +143,21 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
           setConfUid(message.conf_uid);
           console.log('confUid', message.conf_uid);
         }
+        if ((message as any).tts_info) {
+          setTtsInfo((message as any).tts_info as any);
+        }
         if (message.client_uid) {
           setSelfUid(message.client_uid);
+          setClientUid(message.client_uid);
         }
-        setPendingModelInfo(message.model_info);
-        // setModelInfo(message.model_info);
-        // We don't know when the confRef in live2d-config-context will be updated, so we set a delay here for convenience
+        // Normalize model URL BEFORE storing, so pendingModelInfo has final URL
         if (message.model_info && !message.model_info.url.startsWith("http")) {
           const modelUrl = baseUrl + message.model_info.url;
           // eslint-disable-next-line no-param-reassign
           message.model_info.url = modelUrl;
         }
+        setPendingModelInfo(message.model_info);
+        // setModelInfo(message.model_info);
 
         setAiState('idle');
         break;
@@ -220,6 +259,21 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
           appendHumanMessage(message.text);
         }
         break;
+      case 'twitch-message':
+        if (message.text && message.user) {
+          appendHumanMessage(message.text, message.user, 'twitch');
+          pushTwitchMessage({ user: message.user, text: message.text, timestamp: message.timestamp });
+        }
+        break;
+      case 'twitch-status':
+        toaster.create({
+          title: message.connected ? t('notification.twitchConnected') : t('notification.twitchDisconnected'),
+          description: message.channel ? `${t('label.channel')}: ${message.channel}` : undefined,
+          type: message.connected ? 'success' : 'warning',
+          duration: 2000,
+        });
+        setTwitchStatus({ enabled: message.enabled, connected: message.connected, channel: message.channel });
+        break;
       case 'error':
         toaster.create({
           title: message.message,
@@ -260,8 +314,8 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         setForceNewMessage(true);
         break;
       case 'interrupt-signal':
-        // Handle forwarded interrupt
-        interrupt(false); // do not send interrupt signal to server
+        // Handle forwarded interrupt (do not send back)
+        interrupt(false);
         break;
       case 'tool_call_status':
         if (message.tool_id && message.tool_name && message.status) {
@@ -289,11 +343,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
       default:
         console.warn('Unknown message type:', message.type);
     }
-  }, [aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, interrupt, setBrowserViewData, t]);
-
-  useEffect(() => {
-    wsService.connect(wsUrl);
-  }, [wsUrl]);
+  }, [aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, interrupt, setBrowserViewData, t, pushTwitchMessage, setTwitchStatus]);
 
   useEffect(() => {
     const stateSubscription = wsService.onStateChange(setWsState);

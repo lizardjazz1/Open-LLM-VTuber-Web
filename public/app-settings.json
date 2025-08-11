@@ -1,0 +1,6 @@
+{
+  "frontend": {
+    "wsLog": true,
+    "errorLogging": true
+  }
+} 

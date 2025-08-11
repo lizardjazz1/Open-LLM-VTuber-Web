@@ -5,6 +5,7 @@ import { useEffect, useCallback, RefObject, useRef } from 'react';
 import { ModelInfo } from '@/context/live2d-config-context';
 import { LAppDelegate } from '../../../WebSDK/src/lappdelegate';
 import { LAppLive2DManager } from '../../../WebSDK/src/lapplive2dmanager';
+import * as LAppDefine from '../../../WebSDK/src/lappdefine';
 import { useMode } from '@/context/mode-context';
 
 // Constants for model scaling behavior
@@ -200,7 +201,13 @@ export const useLive2DResize = ({
 
       const delegate = LAppDelegate.getInstance();
       if (delegate) {
-        delegate.onResize();
+        // Guard: only resize when model config is set
+        const hasModelConfig = Array.isArray(LAppDefine.ModelDir) && LAppDefine.ModelDir.length > 0
+          && Array.isArray(LAppDefine.ModelFileNames) && LAppDefine.ModelFileNames.length > 0
+          && !!LAppDefine.ModelFileNames[0];
+        if (hasModelConfig) {
+          delegate.onResize();
+        }
       } else {
         console.warn('[Resize] LAppDelegate instance not found.');
       }

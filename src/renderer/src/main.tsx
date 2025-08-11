@@ -28,6 +28,8 @@ console.error = (...args: any[]) => {
 
 if (typeof window !== 'undefined') {
   (window as any).getLAppAdapter = () => LAppAdapter.getInstance();
+  // Expose Live2D manager for consumers that expect it
+  (window as any).getLive2DManager = () => (window as any).LAppLive2DManager?.getInstance?.();
 
   // Dynamically load the Live2D Core script
   const loadLive2DCore = () => {

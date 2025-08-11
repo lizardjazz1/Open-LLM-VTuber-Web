@@ -1,6 +1,7 @@
 /* eslint-disable no-shadow */
 import { useRef, useState } from 'react';
 import { useCamera } from '@/context/camera-context';
+import { logAction, logError } from '@/services/clientLogger';
 
 export const useCameraPanel = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -13,8 +14,10 @@ export const useCameraPanel = () => {
   const toggleCamera = async (): Promise<void> => {
     try {
       if (isStreaming) {
+        await logAction('ui.click', 'camera.stop');
         stopCamera();
       } else {
+        await logAction('ui.click', 'camera.start');
         await startCamera();
       }
       setError('');
@@ -24,6 +27,7 @@ export const useCameraPanel = () => {
         errorMessage = error.message;
       }
       setError(errorMessage);
+      logError('camera.toggle.failed', { error: errorMessage });
     }
   };
 

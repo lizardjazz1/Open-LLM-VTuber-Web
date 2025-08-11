@@ -11,6 +11,7 @@ import { InputGroup } from '@/components/ui/input-group';
 import { footerStyles } from './footer-styles';
 import AIStateIndicator from './ai-state-indicator';
 import { useFooter } from '@/hooks/footer/use-footer';
+import { logAction } from '@/services/clientLogger';
 
 // Type definitions
 interface FooterProps {
@@ -25,6 +26,7 @@ interface ToggleButtonProps {
 
 interface ActionButtonsProps {
   micOn: boolean
+  disabled: boolean
   onMicToggle: () => void
   onInterrupt: () => void
 }
@@ -41,7 +43,7 @@ interface MessageInputProps {
 const ToggleButton = memo(({ isCollapsed, onToggle }: ToggleButtonProps) => (
   <Box
     {...footerStyles.footer.toggleButton}
-    onClick={onToggle}
+    onClick={() => { logAction('ui.click', 'footer.toggle', { to: isCollapsed ? 'open' : 'close' }); onToggle?.(); }}
     color="whiteAlpha.500"
     style={{
       transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -53,11 +55,12 @@ const ToggleButton = memo(({ isCollapsed, onToggle }: ToggleButtonProps) => (
 
 ToggleButton.displayName = 'ToggleButton';
 
-const ActionButtons = memo(({ micOn, onMicToggle, onInterrupt }: ActionButtonsProps) => (
+const ActionButtons = memo(({ micOn, disabled, onMicToggle, onInterrupt }: ActionButtonsProps) => (
   <HStack gap={2}>
     <IconButton
       bg={micOn ? 'green.500' : 'red.500'}
       {...footerStyles.footer.actionButton}
+      disabled={disabled}
       onClick={onMicToggle}
     >
       {micOn ? <BsMicFill /> : <BsMicMuteFill />}
@@ -91,6 +94,7 @@ const MessageInput = memo(({
           aria-label="Attach file"
           variant="ghost"
           {...footerStyles.footer.attachButton}
+          onClick={() => logAction('ui.click', 'attach.open')}
         >
           <BsPaperclip size="24" />
         </IconButton>
@@ -121,6 +125,7 @@ function Footer({ isCollapsed = false, onToggle }: FooterProps): JSX.Element {
     handleInterrupt,
     handleMicToggle,
     micOn,
+    isDisabled,
   } = useFooter();
 
   return (
@@ -135,6 +140,7 @@ function Footer({ isCollapsed = false, onToggle }: FooterProps): JSX.Element {
             </Box>
             <ActionButtons
               micOn={micOn}
+              disabled={isDisabled}
               onMicToggle={handleMicToggle}
               onInterrupt={handleInterrupt}
             />

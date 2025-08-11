@@ -5,6 +5,14 @@ import { useInterrupt } from '@/components/canvas/live2d';
 import { useChatHistory } from '@/context/chat-history-context';
 import { useVAD } from '@/context/vad-context';
 import { useMediaCapture } from '@/hooks/utils/use-media-capture';
+import { logAction } from '@/services/clientLogger';
+
+function genRequestId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return (crypto as any).randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export function useTextInput() {
   const [inputText, setInputText] = useState('');
@@ -28,11 +36,15 @@ export function useTextInput() {
 
     const images = await captureAllMedia();
 
-    appendHumanMessage(inputText.trim());
+    const text = inputText.trim();
+    const requestId = genRequestId();
+    appendHumanMessage(text);
+    await logAction('chat.send', 'text', { length: text.length }, requestId);
     wsContext.sendMessage({
       type: 'text-input',
-      text: inputText.trim(),
+      text,
       images,
+      request_id: requestId,
     });
 
     setAiState('thinking-speaking');
@@ -41,16 +53,14 @@ export function useTextInput() {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (isComposing) return;
-
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  const handleCompositionStart = () => setIsComposing(true);
-  const handleCompositionEnd = () => setIsComposing(false);
+  const handleCompositionStart = () => { setIsComposing(true); logAction('input.composition', 'start'); };
+  const handleCompositionEnd = () => { setIsComposing(false); logAction('input.composition', 'end'); };
 
   return {
     inputText,

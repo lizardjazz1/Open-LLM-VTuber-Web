@@ -23,7 +23,7 @@ function ChatHistoryPanel(): JSX.Element {
   const { messages } = useChatHistory(); // Get messages directly from context
   const { confName } = useConfig();
   const { baseUrl } = useWebSocket();
-  const userName = "Me";
+  const defaultLocalName = "Me";
 
   const validMessages = messages.filter((msg) => msg.content || // Keep messages with content
      (msg.type === 'tool_call_status' && msg.status === 'running') || // Keep running tools
@@ -96,41 +96,53 @@ function ChatHistoryPanel(): JSX.Element {
                   );
                 } 
                 // Render Standard Chat Message (human or ai text)
+                const isAI = msg.role === 'ai';
+                const isTwitchHuman = msg.role === 'human' && msg.source === 'twitch';
+                const senderName = isAI
+                  ? (msg.name || confName || 'AI')
+                  : (isTwitchHuman ? (msg.name || 'Twitch') : defaultLocalName);
+                const direction = isAI || isTwitchHuman ? 'incoming' : 'outgoing';
+
                 return (
                   <ChatMessage
                     key={msg.id}
                     model={{
                       message: msg.content,
                       sentTime: msg.timestamp,
-                      sender: msg.role === 'ai'
-                        ? (msg.name || confName || 'AI')
-                        : userName,
-                      direction: msg.role === 'ai' ? 'incoming' : 'outgoing',
+                      sender: senderName,
+                      direction,
                       position: 'single',
                     }}
-                    avatarPosition={msg.role === 'ai' ? 'tl' : 'tr'}
+                    avatarPosition={direction === 'incoming' ? 'tl' : 'tr'}
                     avatarSpacer={false}
                   >
                     <ChatAvatar>
-                      {msg.role === 'ai' ? (
-                        msg.avatar ? (
-                          <img
-                            src={`${baseUrl}/avatars/${msg.avatar}`}
-                            alt="avatar"
-                            style={{ width: '100%', height: '100%', borderRadius: '50%' }}
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              const fallbackName = msg.name || confName || 'A';
-                              target.outerHTML = `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; border-radius: 50%; background-color: var(--chakra-colors-blue-500); color: white; font-size: 14px;">${fallbackName[0].toUpperCase()}</div>`;
-                            }}
-                          />
+                      {direction === 'incoming' ? (
+                        // Incoming: AI or Twitch user initial
+                        isAI ? (
+                          msg.avatar ? (
+                            <img
+                              src={`${baseUrl}/avatars/${msg.avatar}`}
+                              alt="avatar"
+                              style={{ width: '100%', height: '100%', borderRadius: '50%' }}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                const fallbackName = msg.name || confName || 'A';
+                                target.outerHTML = `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; border-radius: 50%; background-color: var(--chakra-colors-blue-500); color: white; font-size: 14px;">${fallbackName[0].toUpperCase()}</div>`;
+                              }}
+                            />
+                          ) : (
+                            (msg.name && msg.name[0].toUpperCase()) ||
+                              (confName && confName[0].toUpperCase()) ||
+                              'A'
+                          )
                         ) : (
-                          (msg.name && msg.name[0].toUpperCase()) ||
-                            (confName && confName[0].toUpperCase()) ||
-                            'A'
+                          // Twitch user avatar as initial
+                          (senderName && senderName[0].toUpperCase()) || 'T'
                         )
                       ) : (
-                        userName[0].toUpperCase()
+                        // Outgoing: Local user initial
+                        defaultLocalName[0].toUpperCase()
                       )}
                     </ChatAvatar>
                   </ChatMessage>

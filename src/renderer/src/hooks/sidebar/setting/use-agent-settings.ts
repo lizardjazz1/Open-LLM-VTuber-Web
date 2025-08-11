@@ -31,21 +31,24 @@ export function useAgentSettings({ onSave, onCancel }: UseAgentSettingsProps = {
       ...prev,
       allowProactiveSpeak: checked,
     }));
-  }, []);
+    updateSettings({ ...tempSettings, allowProactiveSpeak: checked });
+  }, [tempSettings, updateSettings]);
 
   const handleIdleSecondsChange = useCallback((value: number) => {
     setTempSettings((prev) => ({
       ...prev,
       idleSecondsToSpeak: value,
     }));
-  }, []);
+    updateSettings({ ...tempSettings, idleSecondsToSpeak: value });
+  }, [tempSettings, updateSettings]);
 
   const handleAllowButtonTriggerChange = useCallback((checked: boolean) => {
     setTempSettings((prev) => ({
       ...prev,
       allowButtonTrigger: checked,
     }));
-  }, []);
+    updateSettings({ ...tempSettings, allowButtonTrigger: checked });
+  }, [tempSettings, updateSettings]);
 
   const handleSave = useCallback(() => {
     updateSettings(tempSettings);
@@ -53,9 +56,9 @@ export function useAgentSettings({ onSave, onCancel }: UseAgentSettingsProps = {
   }, [updateSettings, tempSettings]);
 
   const handleCancel = useCallback(() => {
-    setTempSettings(originalSettings);
-    updateSettings(originalSettings);
-  }, [originalSettings, updateSettings]);
+    // Do not revert toggles on cancel; they are autosaved on change
+    setTempSettings((prev) => prev);
+  }, [originalSettings]);
 
   useEffect(() => {
     if (!onSave || !onCancel) return;

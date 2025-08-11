@@ -10,8 +10,15 @@ export function useLocalStorage<T>(
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
-      const parsedValue = item ? JSON.parse(item) : initialValue;
-      return parsedValue;
+      if (!item) return initialValue;
+      try {
+        return JSON.parse(item);
+      } catch (e) {
+        console.error(`Error parsing localStorage key "${key}":`, e);
+        // Value is corrupted, remove it to avoid white screen loops
+        window.localStorage.removeItem(key);
+        return initialValue;
+      }
     } catch (error) {
       console.error(`Error reading localStorage key "${key}":`, error);
       return initialValue;

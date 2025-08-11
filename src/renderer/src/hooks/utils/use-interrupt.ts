@@ -4,6 +4,7 @@ import { useChatHistory } from '@/context/chat-history-context';
 import { audioTaskQueue } from '@/utils/task-queue';
 import { useSubtitle } from '@/context/subtitle-context';
 import { useAudioTask } from './use-audio-task';
+import { useVAD } from '@/context/vad-context';
 
 export const useInterrupt = () => {
   const { aiState, setAiState } = useAiState();
@@ -12,6 +13,7 @@ export const useInterrupt = () => {
   // const { currentModel } = useLive2DModel();
   const { subtitleText, setSubtitleText } = useSubtitle();
   const { stopCurrentAudioAndLipSync } = useAudioTask();
+  const { startMic, autoStartMicOn } = useVAD();
 
   const interrupt = (sendSignal = true) => {
     if (aiState !== 'thinking-speaking') return;
@@ -36,6 +38,14 @@ export const useInterrupt = () => {
       setSubtitleText('');
     }
     console.log('Interrupted!');
+
+    // Transition to idle promptly for UI and input readiness
+    setAiState('idle');
+
+    // If user enabled auto-start-on-interrupt, start mic bypassing user lock
+    if (autoStartMicOn) {
+      try { startMic({ bypassLock: true }); } catch (_) {}
+    }
   };
 
   return { interrupt };

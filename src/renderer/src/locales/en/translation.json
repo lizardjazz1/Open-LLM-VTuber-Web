@@ -13,7 +13,9 @@
       "asr": "ASR",
       "tts": "TTS",
       "agent": "Agent",
-      "about": "About"
+      "about": "About",
+      "sampling": "Sampling",
+      "memory": "Memory"
     },
     "general": {
       "language": "Language",
@@ -62,6 +64,30 @@
       "license": "License",
       "copyright": "Copyright",
       "viewLicense": "View License"
+    },
+    "tts": {
+      "currentEngine": "Current TTS engine",
+      "unknown": "Unknown",
+      "note": "Options depend on the selected TTS"
+    },
+    "sampling": {
+      "temperature": "Temperature",
+      "top_p": "Top P",
+      "frequency_penalty": "Frequency penalty",
+      "presence_penalty": "Presence penalty",
+      "max_tokens": "Max tokens",
+      "seed": "Seed",
+      "presets": {
+        "strict": "Strict",
+        "balanced": "Balanced",
+        "creative": "Creative"
+      }
+    },
+    "memory": {
+      "enabled": "Enable long-term memory",
+      "top_k": "Top‑K retrieval",
+      "clear_current": "Clear current character",
+      "clear_all": "Clear ALL"
     }
   },
   "footer": {
@@ -76,9 +102,13 @@
     "screen": "Screen",
     "browser": "Browser",
     "live": "Live",
+    "stream": "Stream",
     "noMessages": "No messages yet. Start a conversation!",
     "noBrowserSession": "No active browser session",
     "browserSession": "Browser Session"
+  },
+  "label": {
+    "channel": "Channel"
   },
   "group": {
     "management": "Group Management",
@@ -103,7 +133,9 @@
     "newConversation": "New Conversation Started",
     "newChatHistory": "New chat history created",
     "historyDeleteSuccess": "History deleted successfully",
-    "historyDeleteFail": "Failed to delete history"
+    "historyDeleteFail": "Failed to delete history",
+    "twitchConnected": "Twitch connected",
+    "twitchDisconnected": "Twitch disconnected"
   },
   "error": {
     "cameraApiNotSupported": "Camera API is not supported on this device",

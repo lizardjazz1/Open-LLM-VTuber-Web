@@ -1,0 +1,169 @@
+{
+  "common": {
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "settings": "Настройки",
+    "close": "Закрыть",
+    "accept": "Принять"
+  },
+  "settings": {
+    "tabs": {
+      "general": "Общие",
+      "live2d": "Live2D",
+      "asr": "ASR",
+      "tts": "TTS",
+      "agent": "Агент",
+      "sampling": "Семплинг",
+      "memory": "Память",
+      "about": "О программе"
+    },
+    "general": {
+      "language": "Язык",
+      "useCameraBackground": "Использовать камеру как фон",
+      "showSubtitle": "Показывать субтитры",
+      "backgroundImage": "Фоновое изображение",
+      "customBgUrlPlaceholder": "Введите URL изображения",
+      "customBgUrl": "Или введите пользовательский URL",
+      "characterPreset": "Пресет персонажа",
+      "wsUrl": "WebSocket URL",
+      "baseUrl": "Базовый URL",
+      "imageCompressionQuality": "Качество сжатия изображений",
+      "imageCompressionQualityPlaceholder": "Введите качество (0-100)",
+      "imageMaxWidth": "Макс ширина изображения",
+      "imageMaxWidthPlaceholder": "Введите ширину в пикселях"
+    },
+    "live2d": {
+      "pointerInteractive": "Интерактивность указателем",
+      "scrollToResize": "Масштаб колесом мыши"
+    },
+    "asr": {
+      "autoStopMic": "Авто-выкл. микрофон когда ИИ говорит",
+      "autoStopMicDesc": "Автоматически выключать микрофон во время речи ИИ, чтобы избежать петли",
+      "autoStartMicOnConvEnd": "Авто-вкл. микрофон по завершении",
+      "autoStartMicOnConvEndDesc": "Автоматически включать микрофон после завершения речи ИИ",
+      "autoStartMicOn": "Авто-вкл. микрофон при прерывании",
+      "autoStartMicOnDesc": "Автоматически включать микрофон, когда вы прерываете ИИ",
+      "positiveSpeechThreshold": "Порог распознавания речи",
+      "positiveSpeechThresholdDesc": "Мин. уверенность (1-100) для детекции речи",
+      "negativeSpeechThreshold": "Отрицательный порог речи",
+      "negativeSpeechThresholdDesc": "Ниже этого значения детекция останавливается",
+      "redemptionFrames": "Число подтверждающих кадров",
+      "redemptionFramesDesc": "Сколько подряд кадров нужно для подтверждения"
+    },
+    "agent": {
+      "allowProactiveSpeak": "Разрешить проактивную речь",
+      "idleSecondsToSpeak": "Секунд простоя до речи",
+      "allowButtonTrigger": "Подсказывать ИИ кнопкой"
+    },
+    "about": {
+      "title": "Open LLM VTuber Фронтенд",
+      "version": "Версия",
+      "projectLinks": "Ссылки",
+      "github": "GitHub",
+      "documentation": "Документация",
+      "license": "Лицензия",
+      "copyright": "Авторские права",
+      "viewLicense": "Открыть лицензию"
+    },
+    "tts": {
+      "currentEngine": "Активный TTS движок",
+      "unknown": "Неизвестно",
+      "note": "Параметры зависят от выбранного TTS"
+    },
+    "sampling": {
+      "temperature": "Температура",
+      "top_p": "Top P",
+      "frequency_penalty": "Штраф частоты",
+      "presence_penalty": "Штраф присутствия",
+      "max_tokens": "Макс. токенов",
+      "seed": "Seed",
+      "presets": {
+        "strict": "Строгий",
+        "balanced": "Баланс",
+        "creative": "Креатив"
+      }
+    },
+    "memory": {
+      "enabled": "Включить долговременную память",
+      "top_k": "Top‑K результатов",
+      "clear_current": "Очистить память персонажа",
+      "clear_all": "Очистить ВСЮ память"
+    }
+  },
+  "footer": {
+    "typeYourMessage": "Введите сообщение...",
+    "cameraControl": "Нажмите, чтобы включить камеру",
+    "cameraStopping": "Нажмите, чтобы выключить камеру",
+    "screenControl": "Нажмите, чтобы начать захват экрана",
+    "screenStopping": "Нажмите, чтобы остановить захват экрана"
+  },
+  "sidebar": {
+    "camera": "Камера",
+    "screen": "Экран",
+    "browser": "Браузер",
+    "live": "Live",
+    "stream": "Стрим",
+    "noMessages": "Сообщений пока нет. Начните разговор!",
+    "noBrowserSession": "Нет активной сессии браузера",
+    "browserSession": "Сессия браузера"
+  },
+  "group": {
+    "management": "Управление группой",
+    "yourUuid": "Ваш UUID",
+    "inviteMember": "Пригласить участника",
+    "enterMemberUuid": "Введите UUID участника",
+    "invite": "Пригласить",
+    "members": "Участники",
+    "you": "Вы",
+    "leaveGroup": "Покинуть группу",
+    "removeMember": "Удалить участника",
+    "leave": "Выйти"
+  },
+  "history": {
+    "chatHistoryList": "История чатов",
+    "noMessages": "Нет сообщений"
+  },
+  "label": {
+    "channel": "Канал"
+  },
+  "notification": {
+    "characterLoaded": "Новый персонаж загружен",
+    "characterSwitched": "Персонаж переключен",
+    "historyLoaded": "История загружена",
+    "newConversation": "Начат новый диалог",
+    "newChatHistory": "Создана новая история чата",
+    "historyDeleteSuccess": "История удалена",
+    "historyDeleteFail": "Не удалось удалить историю",
+    "twitchConnected": "Twitch подключён",
+    "twitchDisconnected": "Twitch отключён"
+  },
+  "error": {
+    "cameraApiNotSupported": "API камеры не поддерживается этим устройством",
+    "noCameraFound": "Камера не найдена",
+    "failedStartCamera": "Не удалось запустить камеру",
+    "failedStartBackgroundCamera": "Не удалось запустить фоновую камеру",
+    "failedStartScreenCapture": "Не удалось запустить захват экрана",
+    "failedStartVAD": "Не удалось запустить VAD",
+    "llmCantHear": "ИИ не слышит вас",
+    "audioPlayback": "Ошибка воспроизведения аудио",
+    "enterValidUuid": "Введите корректный UUID",
+    "cannotDeleteCurrentHistory": "Нельзя удалить текущую историю",
+    "failedCapture": "Ошибка захвата кадра {{source}}",
+    "failedParseWebSocket": "Не удалось разобрать сообщение WebSocket",
+    "websocketNotOpen": "WebSocket не открыт",
+    "vadMisfire": "Обнаружена слишком короткая речь. Повысьте громкость/длительность или снизьте пороги."
+  },
+  "aiState": {
+    "idle": "ожидание",
+    "thinking-speaking": "думаю/говорю",
+    "interrupted": "прервано",
+    "loading": "загрузка",
+    "listening": "слушаю",
+    "waiting": "ожидание"
+  },
+  "wsStatus": {
+    "connected": "Подключено",
+    "connecting": "Подключение",
+    "clickToReconnect": "Нажмите для переподключения"
+  }
+} 

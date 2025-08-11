@@ -1,7 +1,7 @@
 /* eslint-disable react/require-default-props */
 import { Box, Button, Menu } from '@chakra-ui/react';
 import {
-  FiSettings, FiClock, FiPlus, FiChevronLeft, FiUsers, FiLayers
+  FiSettings, FiClock, FiPlus, FiChevronLeft, FiUsers, FiLayers, FiDatabase
 } from 'react-icons/fi';
 import { memo } from 'react';
 import { sidebarStyles } from './sidebar-styles';
@@ -9,9 +9,12 @@ import SettingUI from './setting/setting-ui';
 import ChatHistoryPanel from './chat-history-panel';
 import BottomTab from './bottom-tab';
 import HistoryDrawer from './history-drawer';
+import MemoryDrawer from './memory-drawer';
 import { useSidebar } from '@/hooks/sidebar/use-sidebar';
 import GroupDrawer from './group-drawer';
 import { ModeType } from '@/context/mode-context';
+import { logAction } from '@/services/clientLogger';
+// removed mic toggle from header
 
 // Type definitions
 interface SidebarProps {
@@ -37,7 +40,7 @@ const ToggleButton = memo(({ isCollapsed, onToggle }: {
     style={{
       transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
     }}
-    onClick={onToggle}
+    onClick={async () => { await logAction('ui.click', 'sidebar.toggle', { to: isCollapsed ? 'open' : 'close' }); onToggle(); }}
   >
     <FiChevronLeft />
   </Box>
@@ -51,13 +54,13 @@ const ModeMenu = memo(({ setMode, currentMode, isElectron }: {
   isElectron: boolean
 }) => (
   <Menu.Root>
-    <Menu.Trigger as={Button} aria-label="Mode Menu" title="Change Mode">
+    <Menu.Trigger as={Button} aria-label="Mode Menu" title="Change Mode" onClick={() => logAction('ui.click', 'mode.menu.open')}>
       <FiLayers />
     </Menu.Trigger>
     <Menu.Positioner>
       <Menu.Content>
         <Menu.RadioItemGroup value={currentMode}>
-          <Menu.RadioItem value="window" onClick={() => setMode('window')}>
+          <Menu.RadioItem value="window" onClick={() => { logAction('ui.click', 'mode.select', { value: 'window' }); setMode('window'); }}>
             <Menu.ItemIndicator />
             Live Mode
           </Menu.RadioItem>
@@ -65,6 +68,7 @@ const ModeMenu = memo(({ setMode, currentMode, isElectron }: {
             value="pet" 
             onClick={() => {
               if (isElectron) {
+                logAction('ui.click', 'mode.select', { value: 'pet' });
                 setMode('pet');
               }
             }}
@@ -82,31 +86,39 @@ const ModeMenu = memo(({ setMode, currentMode, isElectron }: {
 
 ModeMenu.displayName = 'ModeMenu';
 
-const HeaderButtons = memo(({ onSettingsOpen, onNewHistory, setMode, currentMode, isElectron }: HeaderButtonsProps) => (
-  <Box display="flex" gap={1}>
-    <Button onClick={onSettingsOpen}>
-      <FiSettings />
-    </Button>
-
-    <GroupDrawer>
-      <Button>
-        <FiUsers />
+const HeaderButtons = memo(({ onSettingsOpen, onNewHistory, setMode, currentMode, isElectron }: HeaderButtonsProps) => {
+  return (
+    <Box display="flex" gap={1}>
+      <Button onClick={() => { logAction('ui.click', 'settings.open'); onSettingsOpen(); }}>
+        <FiSettings />
       </Button>
-    </GroupDrawer>
 
-    <HistoryDrawer>
-      <Button>
-        <FiClock />
+      <GroupDrawer>
+        <Button onClick={() => logAction('ui.click', 'group.drawer.open')}>
+          <FiUsers />
+        </Button>
+      </GroupDrawer>
+
+      <HistoryDrawer>
+        <Button onClick={() => logAction('ui.click', 'history.drawer.open')}>
+          <FiClock />
+        </Button>
+      </HistoryDrawer>
+
+      <MemoryDrawer>
+        <Button title="Memory" onClick={() => logAction('ui.click', 'memory.drawer.open')}>
+          <FiDatabase />
+        </Button>
+      </MemoryDrawer>
+
+      <Button onClick={() => { logAction('ui.click', 'history.new'); onNewHistory(); }}>
+        <FiPlus />
       </Button>
-    </HistoryDrawer>
 
-    <Button onClick={onNewHistory}>
-      <FiPlus />
-    </Button>
-
-    <ModeMenu setMode={setMode} currentMode={currentMode} isElectron={isElectron} />
-  </Box>
-));
+      <ModeMenu setMode={setMode} currentMode={currentMode} isElectron={isElectron} />
+    </Box>
+  );
+});
 
 HeaderButtons.displayName = 'HeaderButtons';
 

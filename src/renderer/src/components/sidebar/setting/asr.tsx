@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { settingStyles } from './setting-styles';
 import { useASRSettings } from '@/hooks/sidebar/setting/use-asr-settings';
 import { SwitchField, NumberField } from './common';
+import { logAction } from '@/services/clientLogger';
 
 interface ASRProps {
   onSave?: (callback: () => void) => () => void
@@ -30,8 +31,8 @@ function ASR({ onSave, onCancel }: ASRProps): JSX.Element {
   useEffect(() => {
     if (!onSave || !onCancel) return;
 
-    const cleanupSave = onSave(handleSave);
-    const cleanupCancel = onCancel(handleCancel);
+    const cleanupSave = onSave(() => { handleSave(); logAction('settings.change', 'asr.save'); });
+    const cleanupCancel = onCancel(() => { handleCancel(); logAction('settings.change', 'asr.cancel'); });
 
     return (): void => {
       cleanupSave?.();
@@ -44,26 +45,26 @@ function ASR({ onSave, onCancel }: ASRProps): JSX.Element {
       <SwitchField
         label={t('settings.asr.autoStopMic')}
         checked={autoStopMic}
-        onChange={setAutoStopMic}
+        onChange={(v) => { if (v !== autoStopMic) { setAutoStopMic(v); logAction('settings.change', 'asr.autoStopMic', { value: v }); } }}
       />
 
       <SwitchField
         label={t('settings.asr.autoStartMicOnConvEnd')}
         checked={autoStartMicOnConvEnd}
-        onChange={setAutoStartMicOnConvEnd}
+        onChange={(v) => { if (v !== autoStartMicOnConvEnd) { setAutoStartMicOnConvEnd(v); logAction('settings.change', 'asr.autoStartMicOnConvEnd', { value: v }); } }}
       />
 
       <SwitchField
         label={t('settings.asr.autoStartMicOn')}
         checked={autoStartMicOn}
-        onChange={setAutoStartMicOn}
+        onChange={(v) => { if (v !== autoStartMicOn) { setAutoStartMicOn(v); logAction('settings.change', 'asr.autoStartMicOn', { value: v }); } }}
       />
 
       <NumberField
         label={t('settings.asr.positiveSpeechThreshold')}
         help={t('settings.asr.positiveSpeechThresholdDesc')}
         value={localSettings.positiveSpeechThreshold}
-        onChange={(value) => handleInputChange('positiveSpeechThreshold', value)}
+        onChange={(value) => { handleInputChange('positiveSpeechThreshold', value); logAction('settings.change', 'asr.positiveSpeechThreshold', { value }); }}
         min={1}
         max={100}
       />
@@ -72,7 +73,7 @@ function ASR({ onSave, onCancel }: ASRProps): JSX.Element {
         label={t('settings.asr.negativeSpeechThreshold')}
         help={t('settings.asr.negativeSpeechThresholdDesc')}
         value={localSettings.negativeSpeechThreshold}
-        onChange={(value) => handleInputChange('negativeSpeechThreshold', value)}
+        onChange={(value) => { handleInputChange('negativeSpeechThreshold', value); logAction('settings.change', 'asr.negativeSpeechThreshold', { value }); }}
         min={0}
         max={100}
       />
@@ -81,7 +82,7 @@ function ASR({ onSave, onCancel }: ASRProps): JSX.Element {
         label={t('settings.asr.redemptionFrames')}
         help={t('settings.asr.redemptionFramesDesc')}
         value={localSettings.redemptionFrames}
-        onChange={(value) => handleInputChange('redemptionFrames', value)}
+        onChange={(value) => { handleInputChange('redemptionFrames', value); logAction('settings.change', 'asr.redemptionFrames', { value }); }}
         min={1}
         max={100}
       />

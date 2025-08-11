@@ -74,34 +74,38 @@ export class LAppDelegate {
     if (LAppDefine.CanvasSize === 'auto') {
       this._resizeCanvas();
     } else {
-      canvas!.width = LAppDefine.CanvasSize.width;
-      canvas!.height = LAppDefine.CanvasSize.height;
+      if (canvas) {
+        canvas.width = LAppDefine.CanvasSize.width;
+        canvas.height = LAppDefine.CanvasSize.height;
+      }
     }
 
-    if (!frameBuffer) {
-      frameBuffer = gl!.getParameter(gl!.FRAMEBUFFER_BINDING);
+    if (gl && !frameBuffer) {
+      frameBuffer = gl.getParameter(gl.FRAMEBUFFER_BINDING);
     }
 
     // 透過設定
     // 透明设置
-    gl!.enable(gl!.BLEND);
-    gl!.blendFunc(gl!.SRC_ALPHA, gl!.ONE_MINUS_SRC_ALPHA);
+    if (gl) {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    }
 
-    const supportTouch: boolean = 'ontouchend' in canvas!;
+    const supportTouch: boolean = !!(canvas && ('ontouchend' in canvas));
 
-    if (supportTouch) {
+    if (supportTouch && canvas) {
       // タッチ関連コールバック関数登録
       // 注册触摸相关回调函数
-      canvas!.addEventListener('touchstart', onTouchBegan, { passive: true });
-      canvas!.addEventListener('touchmove', onTouchMoved, { passive: true });
-      canvas!.addEventListener('touchend', onTouchEnded, { passive: true });
-      canvas!.addEventListener('touchcancel', onTouchCancel, { passive: true });
-    } else {
+      canvas.addEventListener('touchstart', onTouchBegan, { passive: true });
+      canvas.addEventListener('touchmove', onTouchMoved, { passive: true });
+      canvas.addEventListener('touchend', onTouchEnded, { passive: true });
+      canvas.addEventListener('touchcancel', onTouchCancel, { passive: true });
+    } else if (canvas) {
       // マウス関連コールバック関数登録
       // 注册鼠标相关回调函数
-      canvas!.addEventListener('mousedown', onClickBegan, { passive: true });
-      canvas!.addEventListener('mousemove', onMouseMoved, { passive: true });
-      canvas!.addEventListener('mouseup', onClickEnded, { passive: true });
+      canvas.addEventListener('mousedown', onClickBegan, { passive: true });
+      canvas.addEventListener('mousemove', onMouseMoved, { passive: true });
+      canvas.addEventListener('mouseup', onClickEnded, { passive: true });
     }
 
     // AppViewの初期化
@@ -128,10 +132,10 @@ export class LAppDelegate {
       const manager = LAppLive2DManager.getInstance();
       if (manager) {
         const model = manager.getModel(0);
-        if (model) {
+        if (model && canvas) {
           // Keep model centered in canvas
-          const width = canvas!.width;
-          const height = canvas!.height;
+          const width = canvas.width;
+          const height = canvas.height;
           if (width > 0 && height > 0) {
             // @ts-ignore
             if (model.setPosition) {
@@ -189,29 +193,31 @@ export class LAppDelegate {
 
       // 画面の初期化
       // 屏幕初始化
-      gl!.clearColor(0.0, 0.0, 0.0, 1.0);
+      if (gl) {
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
-      // 深度テストを有効化
-      // 启用深度测试
-      gl!.enable(gl!.DEPTH_TEST);
+        // 深度テストを有効化
+        // 启用深度测试
+        gl.enable(gl.DEPTH_TEST);
 
-      // 近くにある物体は、遠くにある物体を覆い隠す
-      // 近距离的物体会遮挡远距离的物体
-      gl!.depthFunc(gl!.LEQUAL);
+        // 近くにある物体は、遠くにある物体を覆い隠す
+        // 近距离的物体会遮挡远距离的物体
+        gl.depthFunc(gl.LEQUAL);
 
-      // カラーバッファや深度バッファをクリアする
-      // 清除颜色缓冲区和深度缓冲区
-      // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      gl!.clear(gl!.DEPTH_BUFFER_BIT);
+        // カラーバッファや深度バッファをクリアする
+        // 清除颜色缓冲区和深度缓冲区
+        // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.clear(gl.DEPTH_BUFFER_BIT);
 
-      gl!.clearDepth(1.0);
+        gl.clearDepth(1.0);
 
-      // 透過設定
-      gl!.enable(gl!.BLEND);
-      gl!.blendFunc(gl!.SRC_ALPHA, gl!.ONE_MINUS_SRC_ALPHA);
+        // 透過設定
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-      // 描画更新
-      this._view!.render();
+        // 描画更新
+        this._view!.render();
+      }
 
       // ループのために再帰呼び出し
       // 递归调用以进行循环
@@ -336,9 +342,20 @@ export class LAppDelegate {
    * Resize the canvas to fill the screen.
    */
   private _resizeCanvas(): void {
-    canvas!.width = canvas!.clientWidth * window.devicePixelRatio;
-    canvas!.height = canvas!.clientHeight * window.devicePixelRatio;
-    gl!.viewport(0, 0, gl!.drawingBufferWidth, gl!.drawingBufferHeight);
+    if (!canvas || !gl) {
+      return;
+    }
+    // Determine size; if client sizes are zero (not laid out yet), fallback to bounding rect or window size
+    let clientW = canvas.clientWidth;
+    let clientH = canvas.clientHeight;
+    if (clientW === 0 || clientH === 0) {
+      const rect = canvas.getBoundingClientRect();
+      clientW = rect.width || window.innerWidth || 1280;
+      clientH = rect.height || window.innerHeight || 720;
+    }
+    canvas.width = Math.max(1, Math.floor(clientW * window.devicePixelRatio));
+    canvas.height = Math.max(1, Math.floor(clientH * window.devicePixelRatio));
+    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
   }
 
   _cubismOption: Option; // Cubism SDK Option

@@ -13,6 +13,7 @@ export const IMAGE_COMPRESSION_QUALITY_KEY = 'appImageCompressionQuality';
 export const DEFAULT_IMAGE_COMPRESSION_QUALITY = 0.8;
 export const IMAGE_MAX_WIDTH_KEY = 'appImageMaxWidth';
 export const DEFAULT_IMAGE_MAX_WIDTH = 1080;
+export const FRONTEND_ERROR_LOGGING_KEY = 'appEnableFrontendErrorLogging';
 
 interface GeneralSettings {
   language: string[]
@@ -26,6 +27,7 @@ interface GeneralSettings {
   showSubtitle: boolean
   imageCompressionQuality: number;
   imageMaxWidth: number;
+  enableFrontendErrorLogging: boolean;
 }
 
 interface UseGeneralSettingsProps {
@@ -60,6 +62,13 @@ const loadInitialImageMaxWidth = (): number => {
     }
   }
   return DEFAULT_IMAGE_MAX_WIDTH;
+};
+
+const loadInitialFrontendErrorLogging = (): boolean => {
+  const stored = localStorage.getItem(FRONTEND_ERROR_LOGGING_KEY);
+  if (stored === 'true') return true;
+  if (stored === 'false') return false;
+  return false;
 };
 
 export const useGeneralSettings = ({
@@ -106,6 +115,7 @@ export const useGeneralSettings = ({
     showSubtitle,
     imageCompressionQuality: loadInitialCompressionQuality(),
     imageMaxWidth: loadInitialImageMaxWidth(),
+    enableFrontendErrorLogging: loadInitialFrontendErrorLogging(),
   };
 
   const [settings, setSettings] = useState<GeneralSettings>(initialSettings);
@@ -130,6 +140,7 @@ export const useGeneralSettings = ({
     }
     localStorage.setItem(IMAGE_COMPRESSION_QUALITY_KEY, settings.imageCompressionQuality.toString());
     localStorage.setItem(IMAGE_MAX_WIDTH_KEY, settings.imageMaxWidth.toString());
+    localStorage.setItem(FRONTEND_ERROR_LOGGING_KEY, settings.enableFrontendErrorLogging ? 'true' : 'false');
   }, [settings, bgUrlContext, baseUrl, onWsUrlChange, onBaseUrlChange, setShowSubtitle]);
 
   useEffect(() => {

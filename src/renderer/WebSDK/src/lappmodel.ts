@@ -847,6 +847,11 @@ export class LAppModel extends CubismUserModel {
       return false;
     }
 
+    // Guard: model setting may not be ready yet during early initialization
+    if (!this._modelSetting) {
+      return false;
+    }
+
     const count: number = this._modelSetting.getHitAreasCount();
 
     for (let i = 0; i < count; i++) {
@@ -868,6 +873,11 @@ export class LAppModel extends CubismUserModel {
   public anyhitTest(x: number, y: number): string | null {
     // If opacity is less than 1, no hit detection
     if (this._opacity < 1) {
+      return null;
+    }
+
+    // Guard: model setting may not be ready yet during early initialization
+    if (!this._modelSetting) {
       return null;
     }
 
@@ -1066,6 +1076,11 @@ export class LAppModel extends CubismUserModel {
   public isHitOnModel(x: number, y: number): boolean {
     // Skip if model is transparent
     if (this._opacity < 1) {
+      return false;
+    }
+
+    // Guard: skip until core model and matrix are initialized
+    if (!this._model || !this._modelMatrix) {
       return false;
     }
 
@@ -1332,7 +1347,7 @@ export class LAppModel extends CubismUserModel {
   _idParamAngleY: CubismIdHandle; // パラメータID: ParamAngleY
   _idParamAngleZ: CubismIdHandle; // パラメータID: ParamAngleZ
   _idParamEyeBallX: CubismIdHandle; // パラメータID: ParamEyeBallX
-  _idParamEyeBallY: CubismIdHandle; // パラメータID: ParamEyeBAllY
+  _idParamEyeBallY: CubismIdHandle; // パラメータID: ParamEyeBallY
   _idParamBodyAngleX: CubismIdHandle; // パラメータID: ParamBodyAngleX
 
   _state: LoadStep; // 現在のステータス管理用

@@ -12,6 +12,7 @@ import { useWebSocket } from '@/context/websocket-context';
 import { DisplayText } from '@/services/websocket-service';
 import { useLive2DExpression } from '@/hooks/canvas/use-live2d-expression';
 import * as LAppDefine from '../../../WebSDK/src/lappdefine';
+import { useVAD } from '@/context/vad-context';
 
 // Simple type alias for Live2D model
 type Live2DModel = any;
@@ -36,6 +37,7 @@ export const useAudioTask = () => {
   const { appendResponse, appendAIMessage } = useChatHistory();
   const { sendMessage } = useWebSocket();
   const { setExpression } = useLive2DExpression();
+  const { startMic, stopMic, autoStartMicOnConvEnd } = useVAD();
 
   // State refs to avoid stale closures
   const stateRef = useRef({
@@ -136,24 +138,22 @@ export const useAudioTask = () => {
       if (audioBase64) {
         const audioDataUrl = `data:audio/wav;base64,${audioBase64}`;
 
-        // Get Live2D manager and model
+        // Get Live2D manager and model (optional for lip sync)
         const live2dManager = (window as any).getLive2DManager?.();
+        let model: Live2DModel | null = null;
         if (!live2dManager) {
-          console.error('Live2D manager not found');
-          resolve();
-          return;
+          console.warn('Live2D manager not found. Proceeding with audio playback without lip sync.');
+        } else {
+          model = live2dManager.getModel(0);
+          if (!model) {
+            console.warn('Live2D model not found at index 0. Proceeding without lip sync.');
+          } else {
+            console.log('Found model for audio playback');
+            currentModelRef.current = model;
+          }
         }
 
-        const model = live2dManager.getModel(0);
-        if (!model) {
-          console.error('Live2D model not found at index 0');
-          resolve();
-          return;
-        }
-        console.log('Found model for audio playback');
-        currentModelRef.current = model;
-
-        if (!model._wavFileHandler) {
+        if (!model || !model._wavFileHandler) {
           console.warn('Model does not have _wavFileHandler for lip sync');
         } else {
           console.log('Model has _wavFileHandler available');
@@ -170,14 +170,22 @@ export const useAudioTask = () => {
         }
 
         // Start talk motion
-        if (LAppDefine && LAppDefine.PriorityNormal) {
-          console.log("Starting random 'Talk' motion");
-          model.startRandomMotion(
-            "Talk",
-            LAppDefine.PriorityNormal,
-          );
-        } else {
-          console.warn("LAppDefine.PriorityNormal not found - cannot start talk motion");
+        if (model && LAppDefine && typeof LAppDefine.PriorityNormal === 'number') {
+          const hasTalk = typeof model._modelSetting?.getMotionGroupCount === 'function'
+            && (() => {
+              const cnt = model._modelSetting.getMotionGroupCount();
+              for (let i = 0; i < cnt; i += 1) {
+                if (model._modelSetting.getMotionGroupName(i) === 'Talk') return true;
+              }
+              return false;
+            })();
+          if (hasTalk) {
+            console.log("Starting random 'Talk' motion");
+            model.startRandomMotion(
+              'Talk',
+              LAppDefine.PriorityNormal,
+            );
+          }
         }
 
         // Setup audio element
@@ -207,14 +215,17 @@ export const useAudioTask = () => {
             return;
           }
 
+          // Temporarily stop mic to avoid loopback into ASR while TTS is playing
+          try { stopMic(); } catch (_) {}
+
           console.log('Starting audio playback with lip sync');
           audio.play().catch((err) => {
             console.error("Audio play error:", err);
             cleanup();
           });
 
-          // Setup lip sync
-          if (model._wavFileHandler) {
+          // Setup lip sync if model is available
+          if (model && model._wavFileHandler) {
             if (!model._wavFileHandler._initialized) {
               console.log('Applying enhanced lip sync');
               model._wavFileHandler._initialized = true;
@@ -281,7 +292,7 @@ export const useAudioTask = () => {
     return () => {
       isMounted = false;
     };
-  }, [backendSynthComplete, sendMessage, setBackendSynthComplete, stopCurrentAudioAndLipSync]);
+  }, [backendSynthComplete, sendMessage, setBackendSynthComplete]);
 
   /**
    * Add a new audio task to the queue

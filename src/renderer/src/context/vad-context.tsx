@@ -4,13 +4,14 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MicVAD } from '@ricky0123/vad-web';
-import { useInterrupt } from '@/components/canvas/live2d';
+// import { useInterrupt } from '@/components/canvas/live2d';
 import { audioTaskQueue } from '@/utils/task-queue';
 import { useSendAudio } from '@/hooks/utils/use-send-audio';
 import { SubtitleContext } from './subtitle-context';
-import { AiStateContext } from './ai-state-context';
+import { AiStateContext, AiState } from './ai-state-context';
 import { useLocalStorage } from '@/hooks/utils/use-local-storage';
 import { toaster } from '@/components/ui/toaster';
+import { wsService } from '@/services/websocket-service';
 
 /**
  * VAD settings configuration interface
@@ -41,11 +42,17 @@ interface VADState {
   /** Set microphone state */
   setMicOn: (value: boolean) => void;
 
+  /** Internal short cooldown flag after manual stop */
+  userMicLock: boolean;
+
+  /** Set short cooldown after manual toggle */
+  setUserMicLock: (value: boolean) => void;
+
   /** Set Auto stop mic state */
   setAutoStopMic: (value: boolean) => void;
 
   /** Start microphone and VAD */
-  startMic: () => Promise<void>;
+  startMic: (options?: { bypassLock?: boolean }) => Promise<void>;
 
   /** Stop microphone and VAD */
   stopMic: () => void;
@@ -108,11 +115,14 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
   // Refs for VAD instance and state
   const vadRef = useRef<MicVAD | null>(null);
   const previousTriggeredProbabilityRef = useRef(0);
-  const previousAiStateRef = useRef<string>('idle');
+  const previousAiStateRef = useRef<AiState>('idle');
+  const userMicLockRef = useRef(false);
+  // Cooldown removed: we keep persistent manual mic lock, so no auto-restart timer
 
   // Persistent state management
   const [micOn, setMicOn] = useLocalStorage('micOn', DEFAULT_VAD_STATE.micOn);
   const autoStopMicRef = useRef(true);
+  const [userMicLock, setUserMicLockState] = useLocalStorage('userMicLock', false);
   const [autoStopMic, setAutoStopMicState] = useLocalStorage(
     'autoStopMic',
     DEFAULT_VAD_STATE.autoStopMic,
@@ -132,21 +142,31 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
   );
   const autoStartMicOnConvEndRef = useRef(false);
 
+  // Initialize refs from stored values to avoid first-render mismatch
+  useEffect(() => {
+    autoStopMicRef.current = autoStopMic;
+    autoStartMicRef.current = autoStartMicOn;
+    autoStartMicOnConvEndRef.current = autoStartMicOnConvEnd;
+    userMicLockRef.current = userMicLock;
+    // Force one render so consumers see persisted values immediately
+    forceUpdate();
+  }, []);
+
   // Force update mechanism for ref updates
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
 
   // External hooks and contexts
-  const { interrupt } = useInterrupt();
+  // const { interrupt } = useInterrupt();
   const { sendAudioPartition } = useSendAudio();
   const { setSubtitleText } = useContext(SubtitleContext)!;
   const { aiState, setAiState } = useContext(AiStateContext)!;
 
   // Refs for callback stability
-  const interruptRef = useRef(interrupt);
+  // const interruptRef = useRef(interrupt);
   const sendAudioPartitionRef = useRef(sendAudioPartition);
-  const aiStateRef = useRef<string>(aiState);
+  const aiStateRef = useRef<AiState>(aiState);
   const setSubtitleTextRef = useRef(setSubtitleText);
-  const setAiStateRef = useRef(setAiState);
+  const setAiStateRef = useRef(AiStateContext ? setAiState : ((_: AiState) => {}) as any);
 
   const isProcessingRef = useRef(false);
 
@@ -155,9 +175,9 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
     aiStateRef.current = aiState;
   }, [aiState]);
 
-  useEffect(() => {
-    interruptRef.current = interrupt;
-  }, [interrupt]);
+  // useEffect(() => {
+  //   interruptRef.current = interrupt;
+  // }, [interrupt]);
 
   useEffect(() => {
     sendAudioPartitionRef.current = sendAudioPartition;
@@ -173,15 +193,19 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     autoStopMicRef.current = autoStopMic;
-  }, []);
+  }, [autoStopMic]);
 
   useEffect(() => {
     autoStartMicRef.current = autoStartMicOn;
-  }, []);
+  }, [autoStartMicOn]);
 
   useEffect(() => {
     autoStartMicOnConvEndRef.current = autoStartMicOnConvEnd;
-  }, []);
+  }, [autoStartMicOnConvEnd]);
+
+  useEffect(() => {
+    userMicLockRef.current = userMicLock;
+  }, [userMicLock]);
 
   /**
    * Update previous triggered probability and force re-render
@@ -196,7 +220,6 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
    */
   const handleSpeechStart = useCallback(() => {
     console.log('Speech started - entering listening state');
-    // Save current AI state before changing to listening
     previousAiStateRef.current = aiStateRef.current;
     isProcessingRef.current = true;
     setAiStateRef.current('listening');
@@ -208,7 +231,7 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
   const handleSpeechRealStart = useCallback(() => {
     console.log('Real speech confirmed - interrupting AI if needed');
     if (aiStateRef.current === 'thinking-speaking') {
-      interruptRef.current();
+      try { wsService.sendMessage({ type: 'interrupt-signal' }); } catch (_) {}
     }
   }, []);
 
@@ -229,6 +252,7 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
     console.log('Speech ended');
     audioTaskQueue.clearQueue();
 
+    // Original order: stop mic first, then send
     if (autoStopMicRef.current) {
       stopMic();
     } else {
@@ -236,7 +260,7 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
     }
 
     setPreviousTriggeredProbability(0);
-    sendAudioPartitionRef.current(audio);
+    try { sendAudioPartitionRef.current(audio); } catch (_) {}
     isProcessingRef.current = false;
   }, []);
 
@@ -267,6 +291,17 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Debounced updater to avoid repeated rapid saves
+  const updateSettingsDebounced = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const updateSettingsSafe = useCallback((newSettings: VADSettings) => {
+    if (updateSettingsDebounced.current) {
+      clearTimeout(updateSettingsDebounced.current);
+    }
+    updateSettingsDebounced.current = setTimeout(() => {
+      updateSettings(newSettings);
+    }, 200);
+  }, [updateSettings]);
+
   /**
    * Initialize new VAD instance
    */
@@ -287,13 +322,25 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
     });
 
     vadRef.current = newVAD;
+    // Always start when initializing from explicit startMic
     newVAD.start();
   };
 
   /**
    * Start microphone and VAD processing
    */
-  const startMic = useCallback(async () => {
+  const startMic = useCallback(async (options?: { bypassLock?: boolean }) => {
+    const bypassLock = !!options?.bypassLock;
+    // Respect persistent manual lock unless explicitly bypassed for trusted automations
+    if (!bypassLock && userMicLockRef.current) {
+      console.log('startMic blocked by userMicLock');
+      return;
+    }
+    // Do not start while AI is busy thinking/speaking/loading
+    if (aiStateRef.current !== 'idle') {
+      console.log(`startMic blocked due to aiState=${aiStateRef.current}`);
+      return;
+    }
     try {
       if (!vadRef.current) {
         console.log('Initializing VAD');
@@ -311,7 +358,7 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
         duration: 2000,
       });
     }
-  }, [t]);
+  }, [t, micOn]);
 
   /**
    * Stop microphone and VAD processing
@@ -330,6 +377,39 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
     setMicOn(false);
     isProcessingRef.current = false;
   }, []);
+
+  // Sync with backend control messages
+  useEffect(() => {
+    const sub = wsService.onMessage((msg: any) => {
+      try {
+        if (msg?.type === 'control') {
+          const text = (msg.text || '').toString();
+          if (text === 'start-mic') {
+            // Backend start-mic requests are ignored when locked or AI is busy
+            if (!userMicLockRef.current && aiStateRef.current === 'idle') {
+              setMicOn(true);
+              startMic();
+            } else {
+              console.log('Ignoring backend start-mic due to lock or busy AI');
+            }
+          } else if (text === 'stop-mic') {
+            stopMic();
+          } else if (text === 'conversation-chain-start') {
+            // Ensure mic is stopped when AI starts thinking/speaking
+            stopMic();
+          }
+        }
+      } catch (_) {}
+    });
+    return () => sub.unsubscribe();
+  }, [startMic, stopMic]);
+
+  // Also react to AI state changes locally to guarantee mic is off during thinking/speaking
+  useEffect(() => {
+    if (aiStateRef.current === 'thinking-speaking' || aiStateRef.current === 'loading') {
+      stopMic();
+    }
+  }, [aiState]);
 
   /**
    * Set Auto stop mic state
@@ -352,19 +432,27 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
     forceUpdate();
   }, []);
 
+  const setUserMicLock = useCallback((value: boolean) => {
+    userMicLockRef.current = value;
+    setUserMicLockState(value);
+    forceUpdate();
+  }, []);
+
   // Memoized context value
   const contextValue = useMemo(
     () => ({
       autoStopMic: autoStopMicRef.current,
       micOn,
       setMicOn,
+      userMicLock: userMicLockRef.current,
+      setUserMicLock,
       setAutoStopMic,
       startMic,
       stopMic,
       previousTriggeredProbability: previousTriggeredProbabilityRef.current,
       setPreviousTriggeredProbability,
       settings,
-      updateSettings,
+      updateSettings: updateSettingsSafe,
       autoStartMicOn: autoStartMicRef.current,
       setAutoStartMicOn,
       autoStartMicOnConvEnd: autoStartMicOnConvEndRef.current,
@@ -375,7 +463,7 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
       startMic,
       stopMic,
       settings,
-      updateSettings,
+      updateSettingsSafe,
     ],
   );
 

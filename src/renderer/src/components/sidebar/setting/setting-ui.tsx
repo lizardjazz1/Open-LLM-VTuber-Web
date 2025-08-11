@@ -14,6 +14,7 @@ import {
 import { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CloseButton } from '@/components/ui/close-button';
+import { logAction } from '@/services/clientLogger';
 
 import { settingStyles } from './setting-styles';
 import General from './general';
@@ -22,6 +23,7 @@ import ASR from './asr';
 import TTS from './tts';
 import Agent from './agent';
 import About from './about';
+import Sampling from './sampling';
 
 interface SettingUIProps {
   open: boolean;
@@ -50,11 +52,13 @@ function SettingUI({ open, onClose }: SettingUIProps): JSX.Element {
   }, []);
 
   const handleSave = useCallback((): void => {
+    logAction('settings.click', 'save');
     saveHandlers.forEach((handler) => handler());
     onClose();
   }, [saveHandlers, onClose]);
 
   const handleCancel = useCallback((): void => {
+    logAction('settings.click', 'cancel');
     cancelHandlers.forEach((handler) => handler());
     onClose();
   }, [cancelHandlers, onClose]);
@@ -85,6 +89,9 @@ function SettingUI({ open, onClose }: SettingUIProps): JSX.Element {
             onSave={handleSaveCallback}
             onCancel={handleCancelCallback}
           />
+        </Tabs.Content>
+        <Tabs.Content value="sampling" {...settingStyles.settingUI.tabs.content}>
+          <Sampling />
         </Tabs.Content>
         <Tabs.Content value="about" {...settingStyles.settingUI.tabs.content}>
           <About />
@@ -117,7 +124,7 @@ function SettingUI({ open, onClose }: SettingUIProps): JSX.Element {
           <Tabs.Root
             defaultValue="general"
             value={activeTab}
-            onValueChange={(details) => setActiveTab(details.value)}
+            onValueChange={(details) => { setActiveTab(details.value); logAction('settings.tab', 'switch', { to: details.value }); }}
             {...settingStyles.settingUI.tabs.root}
           >
             <Tabs.List {...settingStyles.settingUI.tabs.list}>
@@ -150,6 +157,12 @@ function SettingUI({ open, onClose }: SettingUIProps): JSX.Element {
                 {...settingStyles.settingUI.tabs.trigger}
               >
                 {t('settings.tabs.agent')}
+              </Tabs.Trigger>
+              <Tabs.Trigger
+                value="sampling"
+                {...settingStyles.settingUI.tabs.trigger}
+              >
+                {t('settings.tabs.sampling')}
               </Tabs.Trigger>
               <Tabs.Trigger
                 value="about"

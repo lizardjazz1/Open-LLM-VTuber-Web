@@ -21,6 +21,11 @@ export class LAppGlManager {
   public static getInstance(): LAppGlManager {
     if (s_instance == null) {
       s_instance = new LAppGlManager();
+    } else {
+      // Retry initialization if canvas/gl were not ready previously
+      if (!canvas || !gl) {
+        s_instance = new LAppGlManager();
+      }
     }
 
     return s_instance;
@@ -39,19 +44,23 @@ export class LAppGlManager {
 
   constructor() {
     // Use existing canvas instead of creating a new one
-    canvas = document.getElementById('canvas') as HTMLCanvasElement;
-    // canvas = document.createElement("canvas");
+    canvas = document.getElementById('canvas') as HTMLCanvasElement | null;
 
-     gl = canvas.getContext("webgl2");
+    if (!canvas) {
+      console.warn('[LAppGlManager] Canvas element with id "canvas" not found at construction time.');
+      return;
+    }
 
-     if (!gl) {
-       // gl初期化失敗
-       alert("Cannot initialize WebGL. This browser does not support.");
-       gl = null;
+    try {
+      gl = (canvas.getContext('webgl2') || canvas.getContext('webgl')) as WebGLRenderingContext | null;
+    } catch (e) {
+      gl = null;
+    }
 
-       document.body.innerHTML =
-         "This browser does not support the <code>&lt;canvas&gt;</code> element.";
-     }
+    if (!gl) {
+      console.error('[LAppGlManager] Cannot initialize WebGL context.');
+      return;
+    }
   }
 
   /**

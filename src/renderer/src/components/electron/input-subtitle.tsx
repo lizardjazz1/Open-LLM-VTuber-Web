@@ -31,6 +31,7 @@ export function InputSubtitle() {
     hasAIMessages,
     aiState,
     micOn,
+    isDisabled,
   } = useInputSubtitle();
 
   const { mode } = useMode();
@@ -130,6 +131,7 @@ export function InputSubtitle() {
               <IconButton
                 aria-label="Toggle microphone"
                 onClick={handleMicToggle}
+                disabled={isDisabled}
                 {...inputSubtitleStyles.iconButton}
               >
                 {micOn ? <LuMic size={16} /> : <LuMicOff size={16} />}

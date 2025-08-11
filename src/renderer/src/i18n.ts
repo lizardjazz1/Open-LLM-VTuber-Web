@@ -6,6 +6,7 @@ import LanguageDetector from "i18next-browser-languagedetector";
 // Import translation resources
 import enTranslation from "./locales/en/translation.json";
 import zhTranslation from "./locales/zh/translation.json";
+import ruTranslation from "./locales/ru/translation.json";
 
 // Configure i18next instance
 i18n
@@ -29,6 +30,9 @@ i18n
       },
       zh: {
         translation: zhTranslation,
+      },
+      ru: {
+        translation: ruTranslation,
       },
     },
     // Language detection options

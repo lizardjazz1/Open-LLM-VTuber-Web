@@ -347,6 +347,9 @@ export const sidebarStyles = {
       px: 4,
       position: 'relative' as const,
       zIndex: 0,
+      colorPalette: 'gray',
+      maxH: 'calc(100vh - 240px)',
+      overflowY: 'auto',
     },
     tabs: {
       width: '100%',
@@ -359,7 +362,7 @@ export const sidebarStyles = {
       gap: '2',
     },
     trigger: {
-      color: 'whiteAlpha.700',
+      color: 'whiteAlpha.900',
       display: 'flex',
       alignItems: 'center',
       gap: 2,
